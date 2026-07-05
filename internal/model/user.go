@@ -1,0 +1,30 @@
+package model
+
+import "time"
+
+type User struct {
+	ID           string    `db:"id" json:"id"`
+	Name         string    `db:"name" json:"name"`
+	Email        string    `db:"email" json:"email"`
+	PasswordHash string    `db:"password_hash" json:"-"`
+	CreatedAt    time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt    time.Time `db:"updated_at" json:"updated_at"`
+}
+
+type UserSession struct {
+	ID               string    `db:"id"`
+	UserID           string    `db:"user_id"`
+	Token            string    `db:"token"`
+	RefreshToken     string    `db:"refresh_token"`
+	ExpiresAt        time.Time `db:"expires_at"`
+	RefreshExpiresAt time.Time `db:"refresh_expires_at"`
+	CreatedAt        time.Time `db:"created_at"`
+}
+
+type Setting struct {
+	ID        string    `db:"id" json:"id"`
+	UserID    string    `db:"user_id" json:"-"`
+	Units     string    `db:"units" json:"units"` // "metric" | "imperial"
+	CreatedAt time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt time.Time `db:"updated_at" json:"updated_at"`
+}
