@@ -73,7 +73,7 @@ func (s *ActivityService) CreateFromGPS(ctx context.Context, userID string, req 
 	if err := s.repo.Create(ctx, a, &model.ActivityTrack{ActivityID: a.ID, Points: points}); err != nil {
 		return nil, err
 	}
-	s.recomputeRecords(ctx, a)
+	s.recomputeRecords(ctx, a, points)
 	return a, nil
 }
 
@@ -98,7 +98,7 @@ func (s *ActivityService) CreateManual(ctx context.Context, userID string, req C
 	if err := s.repo.Create(ctx, a, nil); err != nil {
 		return nil, err
 	}
-	s.recomputeRecords(ctx, a)
+	s.recomputeRecords(ctx, a, nil)
 	return a, nil
 }
 
@@ -132,7 +132,7 @@ func (s *ActivityService) ImportGPX(ctx context.Context, userID string, data []b
 	if err := s.repo.Create(ctx, a, &model.ActivityTrack{ActivityID: a.ID, Points: parsed.Points}); err != nil {
 		return nil, err
 	}
-	s.recomputeRecords(ctx, a)
+	s.recomputeRecords(ctx, a, parsed.Points)
 	return a, nil
 }
 
@@ -208,21 +208,41 @@ func (s *ActivityService) ExportGPX(ctx context.Context, id, userID string) (str
 	return buildGPX(a, track.Points), a.Title, nil
 }
 
-// recomputeRecords compares an activity's summary against the user's PRs for
-// that activity type and upserts any it beats. Best-effort (never fails saves).
-func (s *ActivityService) recomputeRecords(ctx context.Context, a *model.Activity) {
+// recomputeRecords compares an activity against the user's PRs for that type
+// and upserts any it beats. Distance-effort records (fastest 5k/10k/…) come
+// from the track and are "lower is better". Best-effort (never fails saves).
+func (s *ActivityService) recomputeRecords(ctx context.Context, a *model.Activity, points []model.TrackPoint) {
 	type cand struct {
-		recordType string
-		value      float64
+		recordType  string
+		value       float64
+		lowerBetter bool
 	}
 	cands := []cand{
-		{model.RecordLongestDistance, a.DistanceMeters},
-		{model.RecordLongestDuration, float64(a.MovingSeconds)},
-		{model.RecordMostElevation, a.ElevationGainM},
+		{model.RecordLongestDistance, a.DistanceMeters, false},
+		{model.RecordLongestDuration, float64(a.MovingSeconds), false},
+		{model.RecordMostElevation, a.ElevationGainM, false},
 	}
 	if a.DistanceMeters >= 400 && a.MovingSeconds >= 60 {
-		cands = append(cands, cand{model.RecordFastestSpeed, a.AvgSpeedMps})
+		cands = append(cands, cand{model.RecordFastestSpeed, a.AvgSpeedMps, false})
 	}
+	// Best-effort times over standard distances — meaningful for foot sports.
+	if points != nil && (a.Type == model.TypeRun || a.Type == model.TypeWalk || a.Type == model.TypeHike) {
+		efforts := []struct {
+			rt     string
+			meters float64
+		}{
+			{model.RecordFastest5k, 5000},
+			{model.RecordFastest10k, 10000},
+			{model.RecordFastestHalf, 21097.5},
+			{model.RecordFastestFull, 42195},
+		}
+		for _, e := range efforts {
+			if sec := bestEffort(points, e.meters); sec > 0 {
+				cands = append(cands, cand{e.rt, float64(sec), true})
+			}
+		}
+	}
+
 	for _, c := range cands {
 		if c.value <= 0 {
 			continue
@@ -231,8 +251,13 @@ func (s *ActivityService) recomputeRecords(ctx context.Context, a *model.Activit
 		if err != nil {
 			continue
 		}
-		if existing != nil && existing.Value >= c.value {
-			continue
+		if existing != nil {
+			if c.lowerBetter && existing.Value <= c.value {
+				continue // existing time is faster
+			}
+			if !c.lowerBetter && existing.Value >= c.value {
+				continue
+			}
 		}
 		_ = s.prRepo.Upsert(ctx, &model.PersonalRecord{
 			ID:           uuid.NewString(),

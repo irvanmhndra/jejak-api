@@ -59,10 +59,15 @@ type ActivityTrack struct {
 
 // Personal record types.
 const (
-	RecordLongestDistance = "longest_distance" // meters
-	RecordLongestDuration = "longest_duration" // moving seconds
-	RecordMostElevation   = "most_elevation"   // meters
-	RecordFastestSpeed    = "fastest_speed"    // m/s (avg moving)
+	RecordLongestDistance = "longest_distance" // meters (higher better)
+	RecordLongestDuration = "longest_duration" // moving seconds (higher better)
+	RecordMostElevation   = "most_elevation"   // meters (higher better)
+	RecordFastestSpeed    = "fastest_speed"    // m/s avg moving (higher better)
+	// Best-effort times over a fixed distance, in seconds (lower better).
+	RecordFastest5k   = "fastest_5k"
+	RecordFastest10k  = "fastest_10k"
+	RecordFastestHalf = "fastest_half" // 21.0975 km
+	RecordFastestFull = "fastest_full" // 42.195 km
 )
 
 type PersonalRecord struct {

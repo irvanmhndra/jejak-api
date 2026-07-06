@@ -78,6 +78,33 @@ func computeTrackStats(points []model.TrackPoint) TrackStats {
 	return st
 }
 
+// bestEffort returns the fastest time (seconds) to cover at least targetMeters
+// anywhere within the track, or 0 if the track is shorter than the target.
+// Requires each point's cumulative Dist to be filled (via computeTrackStats).
+func bestEffort(points []model.TrackPoint, targetMeters float64) int {
+	n := len(points)
+	if n < 2 {
+		return 0
+	}
+	best := math.MaxFloat64
+	i := 0
+	for j := 0; j < n; j++ {
+		// Advance the window start as far as possible while still covering target.
+		for i+1 <= j && points[j].Dist-points[i+1].Dist >= targetMeters {
+			i++
+		}
+		if points[j].Dist-points[i].Dist >= targetMeters {
+			if dur := points[j].T.Sub(points[i].T).Seconds(); dur > 0 && dur < best {
+				best = dur
+			}
+		}
+	}
+	if best == math.MaxFloat64 {
+		return 0
+	}
+	return int(best)
+}
+
 // encodePolyline encodes points using the Google Encoded Polyline Algorithm
 // (precision 5) for compact map previews.
 func encodePolyline(points []model.TrackPoint) string {
