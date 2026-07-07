@@ -15,6 +15,7 @@ func Register(
 	activityH *handler.ActivityHandler,
 	statsH *handler.StatsHandler,
 	settingH *handler.SettingHandler,
+	goalH *handler.GoalHandler,
 ) {
 	e.GET("/health", func(c *echo.Context) error {
 		return c.JSON(http.StatusOK, map[string]string{"status": "ok"})
@@ -51,4 +52,10 @@ func Register(
 	settings := v1.Group("/settings", mid)
 	settings.GET("", settingH.Get)
 	settings.PUT("", settingH.Update)
+
+	// Goals
+	goals := v1.Group("/goals", mid)
+	goals.POST("", goalH.Create)
+	goals.GET("", goalH.List)
+	goals.DELETE("/:id", goalH.Delete)
 }

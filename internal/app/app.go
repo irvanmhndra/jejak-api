@@ -58,18 +58,21 @@ func New(cfg *config.Config) (*App, error) {
 	activityRepo := postgres.NewActivityRepository(db)
 	prRepo := postgres.NewPersonalRecordRepository(db)
 	statsRepo := postgres.NewStatsRepository(db)
+	goalRepo := postgres.NewGoalRepository(db)
 
 	// Services
 	authSvc := service.NewAuthService(userRepo, sessionRepo, settingRepo)
 	activitySvc := service.NewActivityService(activityRepo, prRepo)
 	statsSvc := service.NewStatsService(statsRepo, prRepo)
 	settingSvc := service.NewSettingService(settingRepo)
+	goalSvc := service.NewGoalService(goalRepo, statsRepo)
 
 	// Handlers
 	authH := handler.NewAuthHandler(authSvc)
 	activityH := handler.NewActivityHandler(activitySvc)
 	statsH := handler.NewStatsHandler(statsSvc)
 	settingH := handler.NewSettingHandler(settingSvc)
+	goalH := handler.NewGoalHandler(goalSvc)
 
 	// Echo
 	e := echo.New()
@@ -100,7 +103,7 @@ func New(cfg *config.Config) (*App, error) {
 	e.Use(middleware.RequestID())
 	e.HTTPErrorHandler = customHTTPErrorHandler
 
-	router.Register(e, authSvc, authH, activityH, statsH, settingH)
+	router.Register(e, authSvc, authH, activityH, statsH, settingH, goalH)
 
 	return &App{cfg: cfg, db: db, echo: e}, nil
 }

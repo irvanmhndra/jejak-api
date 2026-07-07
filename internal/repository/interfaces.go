@@ -43,6 +43,12 @@ type ActivityRepository interface {
 	Delete(ctx context.Context, id, userID string) error
 }
 
+type GoalRepository interface {
+	Create(ctx context.Context, g *model.Goal) error
+	FindByUserID(ctx context.Context, userID string) ([]model.Goal, error)
+	Delete(ctx context.Context, id, userID string) error
+}
+
 type PersonalRecordRepository interface {
 	FindByUserID(ctx context.Context, userID string) ([]model.PersonalRecord, error)
 	Find(ctx context.Context, userID, activityType, recordType string) (*model.PersonalRecord, error)
